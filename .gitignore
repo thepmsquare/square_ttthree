@@ -1,0 +1,24 @@
+# bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# environments
+.venv/
+env/
+venv/
+ENV/
+
+# databases / local config
+*.db
+*.sqlite3
+.env
+
+# testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ide settings
+.vscode/
+.idea/
