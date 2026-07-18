@@ -1,9 +1,18 @@
+[build-system]
+requires = ["uv-build"]
+build-backend = "uv_build"
+
 [project]
 name = "square_ttthree"
 version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "GPLv3" }
+authors = [
+    { name = "Parth Mukesh Mangtani", email = "thepmsquare@gmail.com" },
+]
+urls = { homepage = "https://github.com/thepmsquare/square_ttthree" }
 dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.139.0",
@@ -22,3 +31,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+[tool.uv.build-backend]
+module-name = "square_ttthree"
+module-root = ""
+source-include = ["square_ttthree/data/*"]
