@@ -5,9 +5,9 @@ build-backend = "uv_build"
 [project]
 name = "square_ttthree"
 version = "1.0.0"
-description = "Add your description here"
+description = "api and training scripts for my ttthree (tic-tac-toe game)."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "GPLv3" }
 authors = [
     { name = "Parth Mukesh Mangtani", email = "thepmsquare@gmail.com" },
@@ -31,6 +31,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
 [tool.uv.build-backend]
 module-name = "square_ttthree"
 module-root = ""
