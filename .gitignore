@@ -25,3 +25,4 @@ htmlcov/
 .vscode/
 .idea/
 .ruff_cache
+/square_ttthree/data/config.testing.ini

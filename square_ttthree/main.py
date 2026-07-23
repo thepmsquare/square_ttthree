@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from square_commons import get_api_output_in_standard_format
 
-from square_ttthree.config import (
+from square_ttthree.configuration import (
     ALLOW_ORIGINS,
     HOST_IP,
     HOST_PORT,
