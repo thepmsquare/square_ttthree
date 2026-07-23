@@ -16,7 +16,7 @@ urls = { homepage = "https://github.com/thepmsquare/square_ttthree" }
 dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.139.0",
-    "httpx>=0.28.1",
+    "httpx2>=0.28.1",
     "sqlalchemy>=2.0.51",
     "square-commons>=3.2.0",
     "square-logger>=3.0.4",
