@@ -16,6 +16,7 @@ from square_ttthree.configuration import (
     auto_logger,
     logger,
 )
+from square_ttthree.routes import core
 
 app = FastAPI(
     title=MODULE_NAME,
@@ -29,6 +30,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(core.router)
 
 
 @app.get("/")
