@@ -32,15 +32,6 @@ try:
     # ===========================================
 
     # ===========================================
-    # DATABASE
-    DB_IP = config_dict["DATABASE"]["DB_IP"]
-    DB_PORT = int(config_dict["DATABASE"]["DB_PORT"])
-    DB_USERNAME = config_dict["DATABASE"]["DB_USERNAME"]
-    DB_PASSWORD = config_dict["DATABASE"]["DB_PASSWORD"]
-    DB_NAME = config_dict["DATABASE"]["DB_NAME"]
-    # ===========================================
-
-    # ===========================================
     # SQUARE_LOGGER
     LOG_FILE_NAME = str(config_dict["SQUARE_LOGGER"]["LOG_FILE_NAME"])
     LOG_LEVEL = int(config_dict["SQUARE_LOGGER"]["LOG_LEVEL"])
@@ -59,10 +50,6 @@ except Exception as e:
     )
     sys.exit()
 
-
-DATABASE_URL = (
-    f"postgresql+asyncpg://{DB_USERNAME}:{DB_PASSWORD}@{DB_IP}:{DB_PORT}/{DB_NAME}"
-)
 
 if FORMATTER_CHOICE not in ("human_readable", "json"):
     raise ValueError(f"Invalid formatter choice: {FORMATTER_CHOICE}")
