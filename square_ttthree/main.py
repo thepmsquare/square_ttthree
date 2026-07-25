@@ -16,7 +16,7 @@ from square_ttthree.configuration import (
     auto_logger,
     logger,
 )
-from square_ttthree.routes import core, rooms
+from square_ttthree.routes import rooms
 
 app = FastAPI(
     title=MODULE_NAME,
@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(core.router)
+
 app.include_router(rooms.router)
 
 
