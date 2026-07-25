@@ -11,5 +11,3 @@ class DummyRequestModelV0(BaseModel):
 
 class DummyResponseModelV0(BaseModel):
     dummy: int
-
-

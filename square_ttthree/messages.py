@@ -14,4 +14,3 @@ messages = {
     "GENERIC_500": "an internal server error occurred. please try again later.",
     "GENERIC_404": "the record could not be found.",
 }
-

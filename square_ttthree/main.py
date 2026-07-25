@@ -35,7 +35,6 @@ app.include_router(core.router)
 app.include_router(rooms.router)
 
 
-
 @app.get("/")
 @auto_logger()
 async def root():

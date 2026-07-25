@@ -19,8 +19,7 @@ async def test_dummy_v0(get_patched_configuration, create_client_and_cleanup):
     payload = {"dummy": 42}
     response = await client.post("/dummy/v0", json=payload)
     assert response.status_code == 201
-    
+
     json_data = response.json()
     assert json_data["message"] == "the record has been created successfully."
     assert json_data["data"] == {"dummy": 42}
-

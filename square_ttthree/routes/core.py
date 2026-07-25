@@ -15,7 +15,6 @@ from square_ttthree.messages import messages
 from square_ttthree.models.api.core import DummyRequestModelV0, DummyResponseModelV0
 
 router = APIRouter(
-
     tags=["core"],
 )
 

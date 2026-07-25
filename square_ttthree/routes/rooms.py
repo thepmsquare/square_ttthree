@@ -12,7 +12,10 @@ from square_commons.api_utils import StandardResponse, get_api_output_in_standar
 from square_ttthree.configuration import auto_logger, logger
 from square_ttthree.logic.rooms import logic_create_room, logic_get_room
 from square_ttthree.messages import messages
-from square_ttthree.models.api.rooms import RoomCreateResponseModel, RoomGetResponseModel
+from square_ttthree.models.api.rooms import (
+    RoomCreateResponseModel,
+    RoomGetResponseModel,
+)
 
 router = APIRouter(tags=["rooms"], prefix="/api/v1")
 
