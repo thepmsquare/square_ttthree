@@ -1,6 +1,7 @@
 # square_ttthree
 
 > 📌 versioning: see [CHANGELOG.md](./CHANGELOG.md).
+
 > 📌 coding standards: see [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 ## about
@@ -17,7 +18,7 @@ pip install square_ttthree[all]
 
 ### configuration
 
-update the settings in `config.ini` and `config.testing.ini` to match your environment (database url, logging, etc).
+update the settings in `config.ini` and `config.testing.ini` to match your environment (port, logging, etc).
 
 ### running the service
 
@@ -44,6 +45,6 @@ uv run ruff format .
 
 ## env
 
-- python>=3.12.0
+- python>=3.14.0
 
 > feedback is appreciated. thank you!
