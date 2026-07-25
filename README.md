@@ -1,6 +1,7 @@
 # square_ttthree
 
 > 📌 versioning: see [CHANGELOG.md](./CHANGELOG.md).
+> 📌 coding standards: see [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 ## about
 
@@ -17,10 +18,6 @@ pip install square_ttthree[all]
 ### configuration
 
 update the settings in `config.ini` and `config.testing.ini` to match your environment (database url, logging, etc).
-
-### database
-
-this service requires a postgreSQL database to run.
 
 ### running the service
 
