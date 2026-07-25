@@ -6,7 +6,7 @@
 
 ## about
 
-api and training scripts for my ttthree (tic-tac-toe game).
+api and training scripts for ttthree (tic-tac-toe game).
 
 ## installation
 
