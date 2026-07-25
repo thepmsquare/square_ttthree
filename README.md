@@ -28,6 +28,23 @@ this service requires a postgreSQL database to run.
 python square_ttthree/main.py
 ```
 
+## testing
+
+to run test cases with execution and coverage reports:
+
+```shell
+uv run pytest --cov=square_ttthree --cov-report=term-missing
+```
+
+## code quality
+
+to check linting errors and format code using ruff:
+
+```shell
+uv run ruff check .
+uv run ruff format .
+```
+
 ## env
 
 - python>=3.12.0

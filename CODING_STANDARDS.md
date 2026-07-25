@@ -76,3 +76,21 @@ the `models` package is divided into two distinct subpackages:
   - success payloads and http status codes.
   - case-insensitive lookups (where applicable).
   - error responses and 404 formatting.
+- run tests with execution and coverage reports:
+  ```shell
+  uv run pytest --cov=<module_name> --cov-report=term-missing
+  ```
+
+---
+
+## 8. code formatting & pre-commit hooks
+
+- **ruff enforcement**: all python files must be linted and formatted using `ruff` prior to committing.
+- **pre-commit hook**: a git pre-commit hook is configured at `.git/hooks/pre-commit` (and `.pre-commit-config.yaml`) to automatically run `ruff check` and `ruff format` on all staged python files before each commit.
+- **manual execution**:
+  ```shell
+  uv run ruff check .
+  uv run ruff format .
+  ```
+
+

@@ -29,6 +29,7 @@ dependencies = [
 dev = [
     "ruff>=0.15.21",
     "pytest>=9.1.1",
+    "pytest-cov>=6.0.0",
 ]
 
 [tool.pytest.ini_options]

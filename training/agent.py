@@ -2,6 +2,7 @@ import random
 import json
 from typing import Dict, Tuple, List
 
+
 class qlearningagent:
     def __init__(self, alpha: float = 0.2, gamma: float = 0.9, epsilon: float = 0.3):
         # q_table: maps a state tuple to a list of 9 floats (representing action values)
@@ -16,7 +17,9 @@ class qlearningagent:
             self.q_table[state] = [0.0] * 9
         return self.q_table[state]
 
-    def get_action(self, state: Tuple[int, ...], valid_moves: List[int], explore: bool = True) -> int:
+    def get_action(
+        self, state: Tuple[int, ...], valid_moves: List[int], explore: bool = True
+    ) -> int:
         """selects an action using epsilon-greedy strategy."""
         # 1. explore: choose random valid move
         if explore and random.random() < self.epsilon:
@@ -24,29 +27,29 @@ class qlearningagent:
 
         # 2. exploit: choose best move according to q-values
         q_vals = self.get_q_values(state)
-        
+
         # shuffle valid moves to break ties randomly if multiple moves have the same q-value
         shuffled_moves = valid_moves.copy()
         random.shuffle(shuffled_moves)
-        
+
         best_action = shuffled_moves[0]
         best_val = -float("inf")
-        
+
         for action in shuffled_moves:
             if q_vals[action] > best_val:
                 best_val = q_vals[action]
                 best_action = action
-                
+
         return best_action
 
     def update(
-        self, 
-        state: Tuple[int, ...], 
-        action: int, 
-        reward: float, 
-        next_state: Tuple[int, ...], 
-        next_valid_moves: List[int], 
-        done: bool
+        self,
+        state: Tuple[int, ...],
+        action: int,
+        reward: float,
+        next_state: Tuple[int, ...],
+        next_valid_moves: List[int],
+        done: bool,
     ):
         """updates the q-value of the state-action pair using the td target."""
         current_q = self.get_q_values(state)[action]
@@ -64,8 +67,7 @@ class qlearningagent:
     def save(self, filepath: str):
         """saves the q-table to a json file with comma-separated string keys."""
         serialized_q = {
-            ",".join(map(str, state)): values 
-            for state, values in self.q_table.items()
+            ",".join(map(str, state)): values for state, values in self.q_table.items()
         }
         with open(filepath, "w") as f:
             json.dump(serialized_q, f)
