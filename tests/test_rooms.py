@@ -72,3 +72,84 @@ async def test_get_room_not_found(get_patched_configuration, create_client_and_c
     assert json_data["data"] is None
     assert json_data["message"] == "the record could not be found."
     assert json_data["log"] == "NONEXISTENTROOMCODE not found."
+
+
+@pytest.mark.anyio
+async def test_create_room_http_exception(
+    get_patched_configuration, create_client_and_cleanup, mocker
+):
+    from fastapi import HTTPException
+
+    client = create_client_and_cleanup
+    mocker.patch(
+        "square_ttthree.routes.rooms.logic_create_room",
+        side_effect=HTTPException(status_code=400, detail="bad request"),
+    )
+    response = await client.post("/api/v1/room")
+    assert response.status_code == 400
+    assert response.json() == "bad request"
+
+
+@pytest.mark.anyio
+async def test_create_room_generic_exception(
+    get_patched_configuration, create_client_and_cleanup, mocker
+):
+    client = create_client_and_cleanup
+    mocker.patch(
+        "square_ttthree.logic.rooms.room_manager.create_room",
+        side_effect=RuntimeError("create failure"),
+    )
+    response = await client.post("/api/v1/room")
+    assert response.status_code == 500
+    json_data = response.json()
+    assert (
+        json_data["message"]
+        == "an internal server error occurred. please try again later."
+    )
+    assert "create failure" in json_data["log"]
+
+
+@pytest.mark.anyio
+async def test_get_room_http_exception(
+    get_patched_configuration, create_client_and_cleanup, mocker
+):
+    from fastapi import HTTPException
+
+    client = create_client_and_cleanup
+    mocker.patch(
+        "square_ttthree.routes.rooms.logic_get_room",
+        side_effect=HTTPException(status_code=403, detail="forbidden"),
+    )
+    response = await client.get("/api/v1/room/ABCD")
+    assert response.status_code == 403
+    assert response.json() == "forbidden"
+
+
+@pytest.mark.anyio
+async def test_get_room_generic_exception(
+    get_patched_configuration, create_client_and_cleanup, mocker
+):
+    client = create_client_and_cleanup
+    mocker.patch(
+        "square_ttthree.logic.rooms.room_manager.get_room",
+        side_effect=RuntimeError("get failure"),
+    )
+    response = await client.get("/api/v1/room/ABCD")
+    assert response.status_code == 500
+    json_data = response.json()
+    assert (
+        json_data["message"]
+        == "an internal server error occurred. please try again later."
+    )
+    assert "get failure" in json_data["log"]
+
+
+def test_room_manager_collision(mocker):
+    from square_ttthree.logic.rooms import RoomManager
+
+    manager = RoomManager()
+    manager._rooms["AAAA"] = None  # simulate existing room code
+
+    mocker.patch("random.choices", side_effect=[list("AAAA"), list("BBBB")])
+    room = manager.create_room()
+    assert room.room_code == "BBBB"

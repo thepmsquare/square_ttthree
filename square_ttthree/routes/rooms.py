@@ -30,7 +30,7 @@ async def api_create_room():
     try:
         return logic_create_room()
     except HTTPException as he:
-        logger.error(he, exc_info=True)
+        logger.logger.error(he, exc_info=True)
         return JSONResponse(status_code=he.status_code, content=he.detail)
     except Exception as e:
         logger.logger.error(e, exc_info=True)
@@ -52,7 +52,7 @@ async def api_get_room(room_code: str):
     try:
         return logic_get_room(room_code)
     except HTTPException as he:
-        logger.error(he, exc_info=True)
+        logger.logger.error(he, exc_info=True)
         return JSONResponse(status_code=he.status_code, content=he.detail)
     except Exception as e:
         logger.logger.error(e, exc_info=True)
