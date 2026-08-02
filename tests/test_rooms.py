@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.anyio
 async def test_create_room(get_patched_configuration, create_client_and_cleanup):
     client = create_client_and_cleanup
-    response = await client.post("/api/v1/room")
+    response = await client.post("/api/v1/room", json={"user_id": "usr_test123"})
     assert response.status_code == 201
 
     json_data = response.json()
@@ -24,7 +24,7 @@ async def test_get_room_success(get_patched_configuration, create_client_and_cle
     client = create_client_and_cleanup
 
     # 1. create room first
-    create_response = await client.post("/api/v1/room")
+    create_response = await client.post("/api/v1/room", json={"user_id": "usr_test123"})
     assert create_response.status_code == 201
     room_code = create_response.json()["data"]["room_code"]
 
@@ -47,7 +47,7 @@ async def test_get_room_case_insensitive(
     client = create_client_and_cleanup
 
     # 1. create room first
-    create_response = await client.post("/api/v1/room")
+    create_response = await client.post("/api/v1/room", json={"user_id": "usr_test123"})
     assert create_response.status_code == 201
     room_code = create_response.json()["data"]["room_code"]
 
@@ -85,7 +85,7 @@ async def test_create_room_http_exception(
         "square_ttthree.routes.rooms.logic_create_room",
         side_effect=HTTPException(status_code=400, detail="bad request"),
     )
-    response = await client.post("/api/v1/room")
+    response = await client.post("/api/v1/room", json={"user_id": "usr_test123"})
     assert response.status_code == 400
     assert response.json() == "bad request"
 
@@ -99,7 +99,7 @@ async def test_create_room_generic_exception(
         "square_ttthree.logic.rooms.room_manager.create_room",
         side_effect=RuntimeError("create failure"),
     )
-    response = await client.post("/api/v1/room")
+    response = await client.post("/api/v1/room", json={"user_id": "usr_test123"})
     assert response.status_code == 500
     json_data = response.json()
     assert (
@@ -151,5 +151,6 @@ def test_room_manager_collision(mocker):
     manager._rooms["AAAA"] = None  # simulate existing room code
 
     mocker.patch("random.choices", side_effect=[list("AAAA"), list("BBBB")])
-    room = manager.create_room()
+    room = manager.create_room(host_user_id="usr_test123")
     assert room.room_code == "BBBB"
+    assert room.host_user_id == "usr_test123"

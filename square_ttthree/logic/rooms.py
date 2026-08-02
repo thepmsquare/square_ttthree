@@ -9,6 +9,7 @@ from square_commons.api_utils import get_api_output_in_standard_format
 from square_ttthree.configuration import auto_logger
 from square_ttthree.messages import messages
 from square_ttthree.models.api.rooms import (
+    RoomCreateRequestModel,
     RoomCreateResponseModel,
     RoomGetResponseModel,
 )
@@ -19,17 +20,17 @@ class RoomManager:
     def __init__(self):
         self._rooms: Dict[str, GameRoom] = {}
 
-    def create_room(self) -> GameRoom:
+    def create_room(self, host_user_id: str) -> GameRoom:
         """
         generates a unique 4-letter alphanumeric room code in uppercase
-        and stores it in-memory.
+        and stores it in-memory along with host_user_id.
         """
         while True:
             code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
             if code not in self._rooms:
                 break
 
-        room = GameRoom(room_code=code)
+        room = GameRoom(room_code=code, host_user_id=host_user_id)
         self._rooms[code] = room
         return room
 
@@ -45,9 +46,9 @@ room_manager = RoomManager()
 
 
 @auto_logger()
-def logic_create_room() -> JSONResponse:
+def logic_create_room(param: RoomCreateRequestModel) -> JSONResponse:
     try:
-        room = room_manager.create_room()
+        room = room_manager.create_room(host_user_id=param.user_id)
         response_data = RoomCreateResponseModel(room_code=room.room_code)
         output_content = get_api_output_in_standard_format(
             message=messages["CREATE_SUCCESSFUL"],

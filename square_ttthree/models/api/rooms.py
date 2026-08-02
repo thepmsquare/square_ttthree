@@ -5,6 +5,10 @@ pydantic models for the rooms router endpoints.
 from pydantic import BaseModel
 
 
+class RoomCreateRequestModel(BaseModel):
+    user_id: str
+
+
 class RoomCreateResponseModel(BaseModel):
     room_code: str
 
