@@ -33,6 +33,7 @@ app.add_middleware(
 
 
 app.include_router(rooms.router)
+app.include_router(rooms.ws_router)
 
 
 @app.get("/")

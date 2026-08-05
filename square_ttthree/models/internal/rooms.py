@@ -4,7 +4,7 @@ internal models and enums for room state management.
 
 import time
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, Optional
 
 
 class RoomStatus(str, Enum):
@@ -21,3 +21,11 @@ class GameRoom:
         self.guest_user_id: Optional[str] = None
         self.status = RoomStatus.NOT_STARTED
         self.created_at = time.time()
+        self.sockets: Dict[str, Any] = {}
+
+    def get_role(self, user_id: str) -> Optional[str]:
+        if user_id == self.host_user_id:
+            return "X"
+        elif user_id == self.guest_user_id:
+            return "O"
+        return None

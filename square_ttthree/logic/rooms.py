@@ -2,7 +2,7 @@ import random
 import string
 from typing import Dict, Optional
 
-from fastapi import status
+from fastapi import WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from square_commons.api_utils import get_api_output_in_standard_format
 
@@ -12,6 +12,8 @@ from square_ttthree.models.api.rooms import (
     RoomCreateRequestModel,
     RoomCreateResponseModel,
     RoomGetResponseModel,
+    WSErrorPayload,
+    WSStateUpdatePayload,
 )
 from square_ttthree.models.internal.rooms import GameRoom, RoomStatus
 
@@ -43,6 +45,29 @@ class RoomManager:
 
 # singleton instance for in-memory room management
 room_manager = RoomManager()
+
+
+async def broadcast_state_update(room: GameRoom) -> None:
+    """
+    broadcasts state_update to all connected active sockets in the room.
+    """
+    disconnected_user_ids = []
+    for user_id, socket in list(room.sockets.items()):
+        role = room.get_role(user_id) or "X"
+        payload = WSStateUpdatePayload(
+            room_code=room.room_code, your_role=role, status=room.status.value
+        )
+        message = {
+            "event": "STATE_UPDATE",
+            "payload": payload.model_dump(),
+        }
+        try:
+            await socket.send_json(message)
+        except Exception:
+            disconnected_user_ids.append(user_id)
+
+    for uid in disconnected_user_ids:
+        room.sockets.pop(uid, None)
 
 
 @auto_logger()
@@ -93,3 +118,73 @@ def logic_get_room(room_code: str) -> JSONResponse:
         )
     except Exception:
         raise
+
+
+@auto_logger()
+async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
+    await websocket.accept()
+    room = room_manager.get_room(room_code)
+    if not room:
+        error_msg = {
+            "event": "ERROR",
+            "payload": WSErrorPayload(
+                code="ROOM_NOT_FOUND",
+                message="The requested room code does not exist or has expired.",
+            ).model_dump(),
+        }
+        await websocket.send_json(error_msg)
+        await websocket.close(code=4004)
+        return
+
+    user_id: Optional[str] = None
+    try:
+        while True:
+            data = await websocket.receive_json()
+            event = data.get("event")
+            payload = data.get("payload", {})
+
+            if event == "JOIN_ROOM":
+                incoming_user_id = payload.get("user_id")
+                if not incoming_user_id:
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="INVALID_PAYLOAD",
+                            message="user_id is required in JOIN_ROOM payload.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                if incoming_user_id == room.host_user_id:
+                    user_id = incoming_user_id
+                    room.sockets[user_id] = websocket
+                elif (
+                    room.guest_user_id is None and incoming_user_id != room.host_user_id
+                ):
+                    user_id = incoming_user_id
+                    room.guest_user_id = user_id
+                    room.status = RoomStatus.ACTIVE
+                    room.sockets[user_id] = websocket
+                elif incoming_user_id == room.guest_user_id:
+                    user_id = incoming_user_id
+                    room.sockets[user_id] = websocket
+                else:
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="ROOM_FULL",
+                            message="This room already has 2 active players.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    await websocket.close(code=4003)
+                    return
+
+                await broadcast_state_update(room)
+    except WebSocketDisconnect:
+        if user_id and user_id in room.sockets:
+            room.sockets.pop(user_id, None)
+    except Exception:
+        if user_id and user_id in room.sockets:
+            room.sockets.pop(user_id, None)

@@ -5,12 +5,16 @@ they must call a corresponding logic_ function and return its response.
 this file acts solely as an index of all endpoints for the router.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, WebSocket, status
 from fastapi.responses import JSONResponse
 from square_commons.api_utils import StandardResponse, get_api_output_in_standard_format
 
 from square_ttthree.configuration import auto_logger, logger
-from square_ttthree.logic.rooms import logic_create_room, logic_get_room
+from square_ttthree.logic.rooms import (
+    logic_create_room,
+    logic_get_room,
+    logic_ws_room,
+)
 from square_ttthree.messages import messages
 from square_ttthree.models.api.rooms import (
     RoomCreateRequestModel,
@@ -19,6 +23,7 @@ from square_ttthree.models.api.rooms import (
 )
 
 router = APIRouter(tags=["rooms"], prefix="/api/v1")
+ws_router = APIRouter(tags=["websocket"])
 
 
 @router.post(
@@ -63,3 +68,8 @@ async def api_get_room(room_code: str):
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=output_content
         )
+
+
+@ws_router.websocket("/ws/room/{room_code}")
+async def api_ws_room(websocket: WebSocket, room_code: str):
+    await logic_ws_room(websocket, room_code)
