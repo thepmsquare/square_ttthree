@@ -265,3 +265,49 @@ def test_ws_join_room_full(get_patched_configuration):
                 msg = third_ws.receive_json()
                 assert msg["event"] == "ERROR"
                 assert msg["payload"]["code"] == "ROOM_FULL"
+
+
+@pytest.mark.anyio
+async def test_get_all_rooms(get_patched_configuration, create_client_and_cleanup):
+    client = create_client_and_cleanup
+
+    # 1. create a room
+    res1 = await client.post("/api/v1/room", json={"user_id": "usr_admin_host1"})
+    assert res1.status_code == 201
+    room_code1 = res1.json()["data"]["room_code"]
+
+    # 2. get all rooms
+    response = await client.get("/api/v1/rooms")
+    assert response.status_code == 200
+
+    json_data = response.json()
+    assert json_data["message"] == "the record has been retrieved successfully."
+    data = json_data["data"]
+    assert "rooms" in data
+    assert "total_rooms" in data
+    assert data["total_rooms"] >= 1
+
+    room_item = next(r for r in data["rooms"] if r["room_code"] == room_code1)
+    assert room_item["host_user_id"] == "usr_admin_host1"
+    assert room_item["status"] == "not_started"
+    assert room_item["host_connected"] is False
+    assert room_item["guest_connected"] is False
+
+
+@pytest.mark.anyio
+async def test_get_all_rooms_generic_exception(
+    get_patched_configuration, create_client_and_cleanup, mocker
+):
+    client = create_client_and_cleanup
+    mocker.patch(
+        "square_ttthree.logic.rooms.room_manager.get_all_rooms",
+        side_effect=RuntimeError("get all failure"),
+    )
+    response = await client.get("/api/v1/rooms")
+    assert response.status_code == 500
+    json_data = response.json()
+    assert (
+        json_data["message"]
+        == "an internal server error occurred. please try again later."
+    )
+    assert "get all failure" in json_data["log"]

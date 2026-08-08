@@ -11,7 +11,9 @@ from square_ttthree.messages import messages
 from square_ttthree.models.api.rooms import (
     RoomCreateRequestModel,
     RoomCreateResponseModel,
+    RoomGetAllResponseModel,
     RoomGetResponseModel,
+    RoomStateModel,
     WSErrorPayload,
     WSStateUpdatePayload,
 )
@@ -41,6 +43,12 @@ class RoomManager:
         retrieves a room by its code, case-insensitively.
         """
         return self._rooms.get(room_code.upper())
+
+    def get_all_rooms(self) -> Dict[str, GameRoom]:
+        """
+        retrieves all active rooms in-memory.
+        """
+        return self._rooms
 
 
 # singleton instance for in-memory room management
@@ -120,6 +128,48 @@ def logic_get_room(room_code: str) -> JSONResponse:
         response_data = RoomGetResponseModel(
             room_code=room.room_code,
             is_joinable=(room.status == RoomStatus.NOT_STARTED),
+        )
+        output_content = get_api_output_in_standard_format(
+            message=messages["READ_SUCCESSFUL"],
+            data=response_data.model_dump(),
+            as_dict=False,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=output_content.model_dump(),
+        )
+    except Exception:
+        raise
+
+
+@auto_logger()
+def logic_get_all_rooms() -> JSONResponse:
+    try:
+        all_rooms = room_manager.get_all_rooms()
+        room_models = []
+        for room in all_rooms.values():
+            host_conn = bool(room.sockets.get(room.host_user_id))
+            guest_conn = bool(
+                room.guest_user_id and room.sockets.get(room.guest_user_id)
+            )
+            total_socks = sum(len(socks) for socks in room.sockets.values())
+            room_models.append(
+                RoomStateModel(
+                    room_code=room.room_code,
+                    status=room.status.value,
+                    host_user_id=room.host_user_id,
+                    guest_user_id=room.guest_user_id,
+                    current_x_player=room.current_x_player.value,
+                    created_at=room.created_at,
+                    host_connected=host_conn,
+                    guest_connected=guest_conn,
+                    total_connected_sockets=total_socks,
+                )
+            )
+
+        response_data = RoomGetAllResponseModel(
+            rooms=room_models,
+            total_rooms=len(room_models),
         )
         output_content = get_api_output_in_standard_format(
             message=messages["READ_SUCCESSFUL"],

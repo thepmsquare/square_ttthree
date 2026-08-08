@@ -43,3 +43,20 @@ class WSStateUpdatePayload(BaseModel):
 class WSErrorPayload(BaseModel):
     code: str
     message: str
+
+
+class RoomStateModel(BaseModel):
+    room_code: str
+    status: str
+    host_user_id: str
+    guest_user_id: Optional[str] = None
+    current_x_player: str
+    created_at: float
+    host_connected: bool
+    guest_connected: bool
+    total_connected_sockets: int
+
+
+class RoomGetAllResponseModel(BaseModel):
+    rooms: list[RoomStateModel]
+    total_rooms: int
