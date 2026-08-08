@@ -170,7 +170,11 @@ def test_ws_join_room_host(get_patched_configuration):
         msg = ws.receive_json()
         assert msg["event"] == "STATE_UPDATE"
         assert msg["payload"]["room_code"] == room_code
-        assert msg["payload"]["your_role"] == "X"
+        assert msg["payload"]["host_user_id"] == "usr_host123"
+        assert msg["payload"]["guest_user_id"] is None
+        assert msg["payload"]["current_x_player"] == "host"
+        assert msg["payload"]["host_connected"] is True
+        assert msg["payload"]["guest_connected"] is False
         assert msg["payload"]["status"] == "not_started"
 
 
@@ -194,12 +198,16 @@ def test_ws_join_room_guest(get_patched_configuration):
 
             guest_msg = guest_ws.receive_json()
             assert guest_msg["event"] == "STATE_UPDATE"
-            assert guest_msg["payload"]["your_role"] == "O"
+            assert guest_msg["payload"]["host_user_id"] == "usr_host123"
+            assert guest_msg["payload"]["guest_user_id"] == "usr_guest456"
+            assert guest_msg["payload"]["host_connected"] is True
+            assert guest_msg["payload"]["guest_connected"] is True
             assert guest_msg["payload"]["status"] == "active"
 
             host_msg = host_ws.receive_json()
             assert host_msg["event"] == "STATE_UPDATE"
-            assert host_msg["payload"]["your_role"] == "X"
+            assert host_msg["payload"]["host_connected"] is True
+            assert host_msg["payload"]["guest_connected"] is True
             assert host_msg["payload"]["status"] == "active"
 
 

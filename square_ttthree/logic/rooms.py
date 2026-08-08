@@ -51,23 +51,37 @@ async def broadcast_state_update(room: GameRoom) -> None:
     """
     broadcasts state_update to all connected active sockets in the room.
     """
-    disconnected_user_ids = []
-    for user_id, socket in list(room.sockets.items()):
-        role = room.get_role(user_id) or "X"
-        payload = WSStateUpdatePayload(
-            room_code=room.room_code, your_role=role, status=room.status.value
-        )
-        message = {
-            "event": "STATE_UPDATE",
-            "payload": payload.model_dump(),
-        }
-        try:
-            await socket.send_json(message)
-        except Exception:
-            disconnected_user_ids.append(user_id)
+    host_connected = bool(room.sockets.get(room.host_user_id))
+    guest_connected = bool(room.guest_user_id and room.sockets.get(room.guest_user_id))
 
-    for uid in disconnected_user_ids:
-        room.sockets.pop(uid, None)
+    payload = WSStateUpdatePayload(
+        room_code=room.room_code,
+        status=room.status.value,
+        host_user_id=room.host_user_id,
+        guest_user_id=room.guest_user_id,
+        current_x_player=room.current_x_player.value,
+        created_at=room.created_at,
+        host_connected=host_connected,
+        guest_connected=guest_connected,
+    )
+    message = {
+        "event": "STATE_UPDATE",
+        "payload": payload.model_dump(),
+    }
+
+    for user_id, socket_list in list(room.sockets.items()):
+        disconnected_sockets = []
+        for socket in list(socket_list):
+            try:
+                await socket.send_json(message)
+            except Exception:
+                disconnected_sockets.append(socket)
+
+        for sock in disconnected_sockets:
+            if sock in socket_list:
+                socket_list.remove(sock)
+        if not socket_list:
+            room.sockets.pop(user_id, None)
 
 
 @auto_logger()
@@ -158,17 +172,14 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
 
                 if incoming_user_id == room.host_user_id:
                     user_id = incoming_user_id
-                    room.sockets[user_id] = websocket
                 elif (
                     room.guest_user_id is None and incoming_user_id != room.host_user_id
                 ):
                     user_id = incoming_user_id
                     room.guest_user_id = user_id
                     room.status = RoomStatus.ACTIVE
-                    room.sockets[user_id] = websocket
                 elif incoming_user_id == room.guest_user_id:
                     user_id = incoming_user_id
-                    room.sockets[user_id] = websocket
                 else:
                     error_msg = {
                         "event": "ERROR",
@@ -181,10 +192,21 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
                     await websocket.close(code=4003)
                     return
 
+                if user_id not in room.sockets:
+                    room.sockets[user_id] = []
+                if websocket not in room.sockets[user_id]:
+                    room.sockets[user_id].append(websocket)
+
                 await broadcast_state_update(room)
     except WebSocketDisconnect:
         if user_id and user_id in room.sockets:
-            room.sockets.pop(user_id, None)
+            if websocket in room.sockets[user_id]:
+                room.sockets[user_id].remove(websocket)
+            if not room.sockets[user_id]:
+                room.sockets.pop(user_id, None)
     except Exception:
         if user_id and user_id in room.sockets:
-            room.sockets.pop(user_id, None)
+            if websocket in room.sockets[user_id]:
+                room.sockets[user_id].remove(websocket)
+            if not room.sockets[user_id]:
+                room.sockets.pop(user_id, None)
