@@ -371,3 +371,156 @@ async def test_get_all_rooms_generic_exception(
         == "an internal server error occurred. please try again later."
     )
     assert "get all failure" in json_data["log"]
+
+
+def test_ws_make_move_full_game_win(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as host_ws:
+        host_ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = host_ws.receive_json()
+
+        with client.websocket_connect(f"/ws/room/{room_code}") as guest_ws:
+            guest_ws.send_json(
+                {"event": "JOIN_ROOM", "payload": {"user_id": "usr_guest456"}}
+            )
+            _ = guest_ws.receive_json()  # guest STATE_UPDATE
+            _ = host_ws.receive_json()  # host STATE_UPDATE
+
+            # Move 1: Host ('X') plays cell 0
+            host_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 0}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Move 2: Guest ('O') plays cell 3
+            guest_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 3}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Move 3: Host ('X') plays cell 1
+            host_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 1}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Move 4: Guest ('O') plays cell 4
+            guest_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 4}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Move 5: Host ('X') plays cell 2 -> Host completes top row [0, 1, 2]
+            host_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 2}})
+
+            # Host receives STATE_UPDATE then GAME_OVER
+            host_state_update = host_ws.receive_json()
+            assert host_state_update["event"] == "STATE_UPDATE"
+            assert host_state_update["payload"]["status"] == "ready"
+
+            host_game_over = host_ws.receive_json()
+            assert host_game_over["event"] == "GAME_OVER"
+            assert host_game_over["payload"]["winner"] == "X"
+            assert host_game_over["payload"]["winning_line"] == [0, 1, 2]
+            assert host_game_over["payload"]["previous_match_results"] == {
+                "host_wins": 1,
+                "guest_wins": 0,
+                "draws": 0,
+            }
+
+
+def test_ws_make_move_out_of_turn(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as host_ws:
+        host_ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = host_ws.receive_json()
+
+        with client.websocket_connect(f"/ws/room/{room_code}") as guest_ws:
+            guest_ws.send_json(
+                {"event": "JOIN_ROOM", "payload": {"user_id": "usr_guest456"}}
+            )
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Guest tries to move first when current_turn is 'X' (Host)
+            guest_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 0}})
+            err_msg = guest_ws.receive_json()
+            assert err_msg["event"] == "ERROR"
+            assert err_msg["payload"]["code"] == "NOT_YOUR_TURN"
+
+
+def test_ws_make_move_occupied_cell(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as host_ws:
+        host_ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = host_ws.receive_json()
+
+        with client.websocket_connect(f"/ws/room/{room_code}") as guest_ws:
+            guest_ws.send_json(
+                {"event": "JOIN_ROOM", "payload": {"user_id": "usr_guest456"}}
+            )
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Host plays cell 0
+            host_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 0}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Guest tries to play cell 0 as well
+            guest_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 0}})
+            err_msg = guest_ws.receive_json()
+            assert err_msg["event"] == "ERROR"
+            assert err_msg["payload"]["code"] == "INVALID_MOVE"
+
+
+def test_ws_request_rematch(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as host_ws:
+        host_ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = host_ws.receive_json()
+
+        with client.websocket_connect(f"/ws/room/{room_code}") as guest_ws:
+            guest_ws.send_json(
+                {"event": "JOIN_ROOM", "payload": {"user_id": "usr_guest456"}}
+            )
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Host plays cell 0
+            host_ws.send_json({"event": "MAKE_MOVE", "payload": {"cell_index": 0}})
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # Request rematch
+            host_ws.send_json({"event": "REQUEST_REMATCH"})
+            guest_rematch_msg = guest_ws.receive_json()
+            assert guest_rematch_msg["event"] == "STATE_UPDATE"
+            assert guest_rematch_msg["payload"]["board"] == [""] * 9
+            assert guest_rematch_msg["payload"]["current_x_player"] == "guest"
+            assert guest_rematch_msg["payload"]["current_turn"] == "X"
+            assert guest_rematch_msg["payload"]["status"] == "match_ongoing"

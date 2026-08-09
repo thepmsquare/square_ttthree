@@ -1,6 +1,6 @@
 import random
 import string
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from fastapi import WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
@@ -15,9 +15,35 @@ from square_ttthree.models.api.rooms import (
     RoomGetResponseModel,
     RoomStateModel,
     WSErrorPayload,
+    WSGameOverPayload,
     WSStateUpdatePayload,
 )
-from square_ttthree.models.internal.rooms import GameRoom, RoomStatus
+from square_ttthree.models.internal.rooms import GameRoom, PlayerRole, RoomStatus
+
+WINNING_LINES = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],  # horizontal
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],  # vertical
+    [0, 4, 8],
+    [2, 4, 6],  # diagonal
+]
+
+
+def check_match_winner(board: list[str]) -> Tuple[Optional[str], Optional[list[int]]]:
+    """
+    evaluates Tic-Tac-Toe board and returns (winner_symbol, winning_line).
+    winner_symbol can be 'X', 'O', 'DRAW', or None if ongoing.
+    """
+    for line in WINNING_LINES:
+        a, b, c = line
+        if board[a] and board[a] == board[b] == board[c]:
+            return board[a], line
+    if all(cell != "" for cell in board):
+        return "DRAW", None
+    return None, None
 
 
 class RoomManager:
@@ -71,6 +97,8 @@ async def broadcast_state_update(room: GameRoom) -> None:
         created_at=room.created_at,
         host_connected=host_connected,
         guest_connected=guest_connected,
+        board=room.board,
+        current_turn=room.current_turn,
         previous_match_results=room.previous_match_results,
     )
     message = {
@@ -91,6 +119,29 @@ async def broadcast_state_update(room: GameRoom) -> None:
                 socket_list.remove(sock)
         if not socket_list:
             room.sockets.pop(user_id, None)
+
+
+async def broadcast_game_over(
+    room: GameRoom, winner: str, winning_line: Optional[list[int]]
+) -> None:
+    """
+    broadcasts GAME_OVER event to all connected active sockets in the room.
+    """
+    payload = WSGameOverPayload(
+        winner=winner,
+        winning_line=winning_line,
+        previous_match_results=room.previous_match_results,
+    )
+    message = {
+        "event": "GAME_OVER",
+        "payload": payload.model_dump(),
+    }
+    for socket_list in list(room.sockets.values()):
+        for socket in list(socket_list):
+            try:
+                await socket.send_json(message)
+            except Exception:
+                pass
 
 
 @auto_logger()
@@ -165,6 +216,8 @@ def logic_get_all_rooms() -> JSONResponse:
                     host_connected=host_conn,
                     guest_connected=guest_conn,
                     total_connected_sockets=total_socks,
+                    board=room.board,
+                    current_turn=room.current_turn,
                     previous_match_results=room.previous_match_results,
                 )
             )
@@ -278,6 +331,102 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
 
                 update_room_status(room)
                 await broadcast_state_update(room)
+            elif event == "MAKE_MOVE":
+                cell_index = payload.get("cell_index")
+                if (
+                    cell_index is None
+                    or not isinstance(cell_index, int)
+                    or not (0 <= cell_index <= 8)
+                ):
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="INVALID_PAYLOAD",
+                            message="cell_index must be an integer between 0 and 8.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                if room.status not in (RoomStatus.READY, RoomStatus.MATCH_ONGOING):
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="INVALID_MOVE",
+                            message="Cannot make a move in current room status.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                sender_role = room.get_role(user_id) if user_id else None
+                if sender_role != room.current_turn:
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="NOT_YOUR_TURN",
+                            message="It is not your turn.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                if room.board[cell_index] != "":
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="INVALID_MOVE",
+                            message="Cell is already occupied.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                room.board[cell_index] = room.current_turn
+                room.status = RoomStatus.MATCH_ONGOING
+
+                winner, line = check_match_winner(room.board)
+                if winner is not None:
+                    if winner == "X":
+                        if room.current_x_player == PlayerRole.HOST:
+                            room.previous_match_results["host_wins"] += 1
+                        else:
+                            room.previous_match_results["guest_wins"] += 1
+                    elif winner == "O":
+                        if room.current_x_player == PlayerRole.GUEST:
+                            room.previous_match_results["host_wins"] += 1
+                        else:
+                            room.previous_match_results["guest_wins"] += 1
+                    elif winner == "DRAW":
+                        room.previous_match_results["draws"] += 1
+
+                    room.status = RoomStatus.READY
+                    await broadcast_state_update(room)
+                    await broadcast_game_over(room, winner, line)
+                else:
+                    room.current_turn = "O" if room.current_turn == "X" else "X"
+                    await broadcast_state_update(room)
+            elif event == "REQUEST_REMATCH":
+                if room.status not in (RoomStatus.READY, RoomStatus.MATCH_ONGOING):
+                    error_msg = {
+                        "event": "ERROR",
+                        "payload": WSErrorPayload(
+                            code="INVALID_ACTION",
+                            message="Cannot request rematch in current room status.",
+                        ).model_dump(),
+                    }
+                    await websocket.send_json(error_msg)
+                    continue
+
+                room.board = [""] * 9
+                room.current_x_player = (
+                    PlayerRole.GUEST
+                    if room.current_x_player == PlayerRole.HOST
+                    else PlayerRole.HOST
+                )
+                room.current_turn = "X"
+                room.status = RoomStatus.MATCH_ONGOING
+                await broadcast_state_update(room)
             elif event == "LEAVE_ROOM":
                 if user_id and user_id in room.sockets:
                     if websocket in room.sockets[user_id]:
@@ -290,6 +439,7 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
                 await broadcast_state_update(room)
                 await websocket.close()
                 return
+
     except WebSocketDisconnect:
         if user_id and user_id in room.sockets:
             if websocket in room.sockets[user_id]:

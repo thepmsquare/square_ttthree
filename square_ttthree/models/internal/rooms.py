@@ -31,6 +31,8 @@ class GameRoom:
         self.explicit_leave: bool = False
         self.created_at = time.time()
         self.sockets: Dict[str, List[Any]] = {}
+        self.board: List[str] = [""] * 9
+        self.current_turn: str = "X"
         self.previous_match_results: Dict[str, int] = {
             "host_wins": 0,
             "guest_wins": 0,

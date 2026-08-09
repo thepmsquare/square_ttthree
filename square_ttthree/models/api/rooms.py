@@ -38,6 +38,18 @@ class WSStateUpdatePayload(BaseModel):
     created_at: float
     host_connected: bool
     guest_connected: bool
+    board: list[str]
+    current_turn: str
+    previous_match_results: Dict[str, int]
+
+
+class WSMakeMovePayload(BaseModel):
+    cell_index: int
+
+
+class WSGameOverPayload(BaseModel):
+    winner: str
+    winning_line: Optional[list[int]] = None
     previous_match_results: Dict[str, int]
 
 
@@ -56,6 +68,8 @@ class RoomStateModel(BaseModel):
     host_connected: bool
     guest_connected: bool
     total_connected_sockets: int
+    board: list[str]
+    current_turn: str
     previous_match_results: Dict[str, int]
 
 
