@@ -9,9 +9,11 @@ from typing import Any, Dict, List, Optional
 
 class RoomStatus(str, Enum):
     NOT_STARTED = "not_started"
-    ACTIVE = "active"
+    READY = "ready"
+    MATCH_ONGOING = "match_ongoing"
     PAUSED = "paused"
-    FINISHED = "finished"
+    MISSING_PLAYER = "missing_player"
+    EMPTY_LOBBY = "empty_lobby"
 
 
 class PlayerRole(str, Enum):
@@ -26,6 +28,7 @@ class GameRoom:
         self.guest_user_id: Optional[str] = None
         self.current_x_player = PlayerRole.HOST
         self.status = RoomStatus.NOT_STARTED
+        self.explicit_leave: bool = False
         self.created_at = time.time()
         self.sockets: Dict[str, List[Any]] = {}
 

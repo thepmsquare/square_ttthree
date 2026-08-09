@@ -202,13 +202,63 @@ def test_ws_join_room_guest(get_patched_configuration):
             assert guest_msg["payload"]["guest_user_id"] == "usr_guest456"
             assert guest_msg["payload"]["host_connected"] is True
             assert guest_msg["payload"]["guest_connected"] is True
-            assert guest_msg["payload"]["status"] == "active"
+            assert guest_msg["payload"]["status"] == "ready"
 
             host_msg = host_ws.receive_json()
             assert host_msg["event"] == "STATE_UPDATE"
             assert host_msg["payload"]["host_connected"] is True
             assert host_msg["payload"]["guest_connected"] is True
-            assert host_msg["payload"]["status"] == "active"
+            assert host_msg["payload"]["status"] == "ready"
+
+
+def test_ws_leave_room_missing_player(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as host_ws:
+        host_ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = host_ws.receive_json()
+
+        with client.websocket_connect(f"/ws/room/{room_code}") as guest_ws:
+            guest_ws.send_json(
+                {"event": "JOIN_ROOM", "payload": {"user_id": "usr_guest456"}}
+            )
+            _ = guest_ws.receive_json()
+            _ = host_ws.receive_json()
+
+            # guest sends LEAVE_ROOM
+            guest_ws.send_json({"event": "LEAVE_ROOM"})
+            host_msg = host_ws.receive_json()
+            assert host_msg["event"] == "STATE_UPDATE"
+            assert host_msg["payload"]["status"] == "missing_player"
+            assert host_msg["payload"]["guest_connected"] is False
+
+
+def test_ws_disconnect_empty_lobby(get_patched_configuration):
+    from fastapi.testclient import TestClient
+
+    from square_ttthree.main import app
+
+    client = TestClient(app)
+    res = client.post("/api/v1/room", json={"user_id": "usr_host123"})
+    room_code = res.json()["data"]["room_code"]
+
+    with client.websocket_connect(f"/ws/room/{room_code}") as ws:
+        ws.send_json({"event": "JOIN_ROOM", "payload": {"user_id": "usr_host123"}})
+        _ = ws.receive_json()
+
+    # after ws block exits (disconnects), check room status via GET /api/v1/rooms
+    rooms_res = client.get("/api/v1/rooms")
+    room_item = next(
+        r for r in rooms_res.json()["data"]["rooms"] if r["room_code"] == room_code
+    )
+    assert room_item["status"] == "empty_lobby"
+    assert room_item["host_connected"] is False
 
 
 def test_ws_join_room_invalid_room(get_patched_configuration):

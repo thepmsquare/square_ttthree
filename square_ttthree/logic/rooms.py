@@ -184,6 +184,34 @@ def logic_get_all_rooms() -> JSONResponse:
         raise
 
 
+def update_room_status(room: GameRoom) -> None:
+    """
+    updates room status deterministically based on player connectivity and explicit leave state.
+    """
+    host_connected = bool(room.sockets.get(room.host_user_id))
+    guest_connected = bool(room.guest_user_id and room.sockets.get(room.guest_user_id))
+    total_connected = (1 if host_connected else 0) + (1 if guest_connected else 0)
+
+    if total_connected == 0:
+        room.status = RoomStatus.EMPTY_LOBBY
+    elif room.guest_user_id is None:
+        if host_connected:
+            room.status = RoomStatus.NOT_STARTED
+        else:
+            room.status = RoomStatus.EMPTY_LOBBY
+    else:
+        if total_connected == 1:
+            if room.explicit_leave:
+                room.status = RoomStatus.MISSING_PLAYER
+            else:
+                room.status = RoomStatus.PAUSED
+        elif total_connected == 2:
+            if room.status == RoomStatus.MATCH_ONGOING:
+                room.status = RoomStatus.MATCH_ONGOING
+            else:
+                room.status = RoomStatus.READY
+
+
 @auto_logger()
 async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
     await websocket.accept()
@@ -227,7 +255,6 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
                 ):
                     user_id = incoming_user_id
                     room.guest_user_id = user_id
-                    room.status = RoomStatus.ACTIVE
                 elif incoming_user_id == room.guest_user_id:
                     user_id = incoming_user_id
                 else:
@@ -247,16 +274,33 @@ async def logic_ws_room(websocket: WebSocket, room_code: str) -> None:
                 if websocket not in room.sockets[user_id]:
                     room.sockets[user_id].append(websocket)
 
+                update_room_status(room)
                 await broadcast_state_update(room)
+            elif event == "LEAVE_ROOM":
+                if user_id and user_id in room.sockets:
+                    if websocket in room.sockets[user_id]:
+                        room.sockets[user_id].remove(websocket)
+                    if not room.sockets[user_id]:
+                        room.sockets.pop(user_id, None)
+
+                room.explicit_leave = True
+                update_room_status(room)
+                await broadcast_state_update(room)
+                await websocket.close()
+                return
     except WebSocketDisconnect:
         if user_id and user_id in room.sockets:
             if websocket in room.sockets[user_id]:
                 room.sockets[user_id].remove(websocket)
             if not room.sockets[user_id]:
                 room.sockets.pop(user_id, None)
+        update_room_status(room)
+        await broadcast_state_update(room)
     except Exception:
         if user_id and user_id in room.sockets:
             if websocket in room.sockets[user_id]:
                 room.sockets[user_id].remove(websocket)
             if not room.sockets[user_id]:
                 room.sockets.pop(user_id, None)
+        update_room_status(room)
+        await broadcast_state_update(room)
