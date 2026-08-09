@@ -38,6 +38,7 @@ class WSStateUpdatePayload(BaseModel):
     created_at: float
     host_connected: bool
     guest_connected: bool
+    previous_match_results: Dict[str, int]
 
 
 class WSErrorPayload(BaseModel):
@@ -55,6 +56,7 @@ class RoomStateModel(BaseModel):
     host_connected: bool
     guest_connected: bool
     total_connected_sockets: int
+    previous_match_results: Dict[str, int]
 
 
 class RoomGetAllResponseModel(BaseModel):

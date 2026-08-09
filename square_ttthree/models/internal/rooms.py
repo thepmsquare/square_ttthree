@@ -31,6 +31,11 @@ class GameRoom:
         self.explicit_leave: bool = False
         self.created_at = time.time()
         self.sockets: Dict[str, List[Any]] = {}
+        self.previous_match_results: Dict[str, int] = {
+            "host_wins": 0,
+            "guest_wins": 0,
+            "draws": 0,
+        }
 
     def get_role(self, user_id: str) -> Optional[str]:
         if user_id == self.host_user_id:

@@ -71,6 +71,7 @@ async def broadcast_state_update(room: GameRoom) -> None:
         created_at=room.created_at,
         host_connected=host_connected,
         guest_connected=guest_connected,
+        previous_match_results=room.previous_match_results,
     )
     message = {
         "event": "STATE_UPDATE",
@@ -164,6 +165,7 @@ def logic_get_all_rooms() -> JSONResponse:
                     host_connected=host_conn,
                     guest_connected=guest_conn,
                     total_connected_sockets=total_socks,
+                    previous_match_results=room.previous_match_results,
                 )
             )
 

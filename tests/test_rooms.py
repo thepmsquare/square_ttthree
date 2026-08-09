@@ -176,6 +176,11 @@ def test_ws_join_room_host(get_patched_configuration):
         assert msg["payload"]["host_connected"] is True
         assert msg["payload"]["guest_connected"] is False
         assert msg["payload"]["status"] == "not_started"
+        assert msg["payload"]["previous_match_results"] == {
+            "host_wins": 0,
+            "guest_wins": 0,
+            "draws": 0,
+        }
 
 
 def test_ws_join_room_guest(get_patched_configuration):
@@ -342,6 +347,11 @@ async def test_get_all_rooms(get_patched_configuration, create_client_and_cleanu
     assert room_item["status"] == "not_started"
     assert room_item["host_connected"] is False
     assert room_item["guest_connected"] is False
+    assert room_item["previous_match_results"] == {
+        "host_wins": 0,
+        "guest_wins": 0,
+        "draws": 0,
+    }
 
 
 @pytest.mark.anyio
